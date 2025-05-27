@@ -1,10 +1,8 @@
-# -*- coding: utf-8 -*-
 import requests
-import xlrd
+import openpyxl
 from datetime import datetime
 from decimal import Decimal
 from jinja2 import Template
-import os
 
 def baixar_arquivo():
     url = 'https://cepea.esalq.usp.br/br/indicador/series/boi-gordo.aspx?id=2&download=true'
@@ -14,21 +12,23 @@ def baixar_arquivo():
     }
     r = requests.get(url, headers=headers)
     r.raise_for_status()
-    with open('cotacao.xls', 'wb') as f:
+    with open('cotacao.xlsx', 'wb') as f:
         f.write(r.content)
 
 def extrair_ultima_cotacao():
-    workbook = xlrd.open_workbook('cotacao.xls')
-    sheet = workbook.sheet_by_index(0)
-    for i in reversed(range(sheet.nrows)):
-        row = sheet.row(i)
-        if any(cell.value for cell in row):
-            raw_date = row[0].value
-            raw_price = row[1].value
+    wb = openpyxl.load_workbook('cotacao.xlsx')
+    sheet = wb.active
+
+    for row in reversed(list(sheet.iter_rows(min_row=2, values_only=True))):
+        if row and row[0] and row[1]:
+            data_str = row[0].strftime('%d/%m/%Y') if isinstance(row[0], datetime) else str(row[0])
+            preco_str = str(row[1])
             break
-    cote_date = datetime.strptime(raw_date, "%d/%m/%Y").date()
-    quote_price = Decimal(str(raw_price)).quantize(Decimal("0.01"))
-    return cote_date.strftime("%d/%m/%Y"), str(quote_price).replace(".", ",")
+
+    data_formatada = datetime.strptime(data_str, "%d/%m/%Y").strftime("%d/%m/%Y")
+    preco_formatado = str(Decimal(preco_str.replace(",", ".")).quantize(Decimal("0.01"))).replace(".", ",")
+
+    return data_formatada, preco_formatado
 
 def gerar_html(data, preco):
     template_str = """<!DOCTYPE html>
