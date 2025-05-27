@@ -2,7 +2,7 @@ name: Atualizar cotação ESALQ
 
 on:
   schedule:
-    - cron: '0 10 * * 1-5' # seg a sex 10h UTC, 7h horário de Brasília
+    - cron: '30 21 * * 1-5' # seg a sex 21 UTC, 18:30h horário de Brasília
   workflow_dispatch:      # Permite executar manualmente pelo GitHub
 
 permissions:
