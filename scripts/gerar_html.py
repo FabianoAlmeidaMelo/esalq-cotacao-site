@@ -1,34 +1,38 @@
 import requests
 import openpyxl
+from io import BytesIO
 from datetime import datetime
 from decimal import Decimal
 from jinja2 import Template
 
-def baixar_arquivo():
+def baixar_e_extrair_ultima_cotacao():
     url = 'https://cepea.esalq.usp.br/br/indicador/series/boi-gordo.aspx?id=2&download=true'
     headers = {
         'Referer': 'https://cepea.esalq.usp.br/br/indicador/series/boi-gordo.aspx?id=2',
         'User-Agent': 'Mozilla/5.0'
     }
+
     r = requests.get(url, headers=headers)
     r.raise_for_status()
-    with open('cotacao.xlsx', 'wb') as f:
-        f.write(r.content)
 
-def extrair_ultima_cotacao():
-    wb = openpyxl.load_workbook('cotacao.xlsx')
+    # Lê direto da memória
+    wb = openpyxl.load_workbook(filename=BytesIO(r.content))
     sheet = wb.active
 
+    # Procura da última linha útil (de baixo pra cima)
     for row in reversed(list(sheet.iter_rows(min_row=2, values_only=True))):
         if row and row[0] and row[1]:
-            data_str = row[0].strftime('%d/%m/%Y') if isinstance(row[0], datetime) else str(row[0])
-            preco_str = str(row[1])
-            break
+            # row[0] é datetime ou string, row[1] é float
+            data = row[0]
+            preco = row[1]
+            if isinstance(data, datetime):
+                data_formatada = data.strftime("%d/%m/%Y")
+            else:
+                data_formatada = datetime.strptime(data, "%d/%m/%Y").strftime("%d/%m/%Y")
+            preco_formatado = str(Decimal(preco).quantize(Decimal("0.01"))).replace(".", ",")
+            return data_formatada, preco_formatado
 
-    data_formatada = datetime.strptime(data_str, "%d/%m/%Y").strftime("%d/%m/%Y")
-    preco_formatado = str(Decimal(preco_str.replace(",", ".")).quantize(Decimal("0.01"))).replace(".", ",")
-
-    return data_formatada, preco_formatado
+    raise Exception("Não foi possível encontrar a cotação")
 
 def gerar_html(data, preco):
     template_str = """<!DOCTYPE html>
@@ -43,6 +47,5 @@ def gerar_html(data, preco):
         f.write(html)
 
 if __name__ == "__main__":
-    baixar_arquivo()
-    data, preco = extrair_ultima_cotacao()
+    data, preco = baixar_e_extrair_ultima_cotacao()
     gerar_html(data, preco)
