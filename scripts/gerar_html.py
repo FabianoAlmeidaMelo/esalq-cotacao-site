@@ -1,38 +1,24 @@
-import requests
-import openpyxl
-from io import BytesIO
-from datetime import datetime
-from decimal import Decimal
+from playwright.sync_api import sync_playwright
 from jinja2 import Template
 
-def baixar_e_extrair_ultima_cotacao():
-    url = 'https://cepea.esalq.usp.br/br/indicador/series/boi-gordo.aspx?id=2&download=true'
-    headers = {
-        'Referer': 'https://cepea.esalq.usp.br/br/indicador/series/boi-gordo.aspx?id=2',
-        'User-Agent': 'Mozilla/5.0'
-    }
+def raspar_cotacao():
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.goto("https://fabianoalmeidamelo.github.io/cotacao/")
+        page.wait_for_timeout(5000)  # espera 5 segundos para JS carregar
 
-    r = requests.get(url, headers=headers)
-    r.raise_for_status()
+        html = page.content()
+        browser.close()
 
-    # Lê direto da memória
-    wb = openpyxl.load_workbook(filename=BytesIO(r.content))
-    sheet = wb.active
+    import re
+    match = re.search(r'(\d{2}/\d{2}/\d{4}).*?class="maior">([\d,]+)<', html, re.DOTALL)
+    if not match:
+        raise Exception("Cotação não encontrada")
 
-    # Procura da última linha útil (de baixo pra cima)
-    for row in reversed(list(sheet.iter_rows(min_row=2, values_only=True))):
-        if row and row[0] and row[1]:
-            # row[0] é datetime ou string, row[1] é float
-            data = row[0]
-            preco = row[1]
-            if isinstance(data, datetime):
-                data_formatada = data.strftime("%d/%m/%Y")
-            else:
-                data_formatada = datetime.strptime(data, "%d/%m/%Y").strftime("%d/%m/%Y")
-            preco_formatado = str(Decimal(preco).quantize(Decimal("0.01"))).replace(".", ",")
-            return data_formatada, preco_formatado
-
-    raise Exception("Não foi possível encontrar a cotação")
+    data = match.group(1)
+    preco = match.group(2)
+    return data, preco
 
 def gerar_html(data, preco):
     template_str = """<!DOCTYPE html>
@@ -47,5 +33,5 @@ def gerar_html(data, preco):
         f.write(html)
 
 if __name__ == "__main__":
-    data, preco = baixar_e_extrair_ultima_cotacao()
+    data, preco = raspar_cotacao()
     gerar_html(data, preco)

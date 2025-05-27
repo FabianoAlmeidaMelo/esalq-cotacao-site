@@ -8,14 +8,21 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Clonar repositório
+      - name: Checkout repositório
         uses: actions/checkout@v3
 
-      - name: Instalar dependências
-        run: pip install openpyxl jinja2
+      - name: Instalar dependências do sistema
+        run: sudo apt-get update && sudo apt-get install -y libglib2.0-0 libnss3 libatk-bridge2.0-0 libxss1 libasound2 libgtk-3-0
 
-      - name: Rodar script de geração
+      - name: Instalar dependências Python
+        run: pip install playwright jinja2
+
+      - name: Instalar browsers do Playwright
+        run: playwright install --with-deps
+
+      - name: Rodar script Python
         run: python scripts/gerar_html.py
 
       - name: Commit e push se houve mudanças
@@ -23,5 +30,6 @@ jobs:
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
           git add index.html
-          git commit -m "Atualiza cotação automaticamente" || echo "Sem mudanças"
+          git commit -m "Atualiza cotação via JS" || echo "Sem mudanças"
           git push
+
