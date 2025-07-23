@@ -1,20 +1,24 @@
 from playwright.sync_api import sync_playwright
 from jinja2 import Template
+import re
 
 def raspar_cotacao():
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
         page.goto("https://fabianoalmeidamelo.github.io/cotacao/")
-        page.wait_for_timeout(5000)  # espera 5 segundos para JS carregar
+        page.wait_for_timeout(5000)
 
         html = page.content()
         browser.close()
 
-    import re
-    match = re.search(r'(\d{2}/\d{2}/\d{4}).*?class="maior">([\d,]+)<', html, re.DOTALL)
+    match = re.search(
+        r'(\d{2}/\d{2}/\d{4}).*?R\$ ?<span class="maior">([\d,]+)</span>',
+        html,
+        re.DOTALL
+    )
     if not match:
-        raise Exception("Cotação não encontrada")
+        raise Exception("falha: Cotação não encontrada")
 
     data = match.group(1)
     preco = match.group(2)
