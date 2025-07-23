@@ -7,7 +7,7 @@ def raspar_cotacao():
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
         page.goto("https://fabianoalmeidamelo.github.io/cotacao/")
-        page.wait_for_timeout(5000)
+        page.wait_for_timeout(15000)
 
         html = page.content()
         browser.close()
